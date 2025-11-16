@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"log"
@@ -117,9 +118,12 @@ func main() {
 	}
 
 	// Start GitHub sync service
-	if ghService := service.GetGitHubSyncService(); ghService != nil {
-		ghService.StartAutoSync()
-	}
+	// 注意: GitHub 同步服务已被暂时禁用以解决 Docker 构建问题
+	// 要启用此功能，请使用 GitHub Actions workflow: .github/workflows/enable-github-sync.yml
+	// 或参考文档: docs/ENABLE_GITHUB_SYNC.md
+	// if ghService := service.GetGitHubSyncService(); ghService != nil {
+	// 	ghService.StartAutoSync()
+	// }
 
 	// Start log content cleanup task
 	go startLogContentCleanupTask()
@@ -266,11 +270,14 @@ func InitResources() error {
 	}
 
 	// Initialize GitHub Sync Service
-	err = service.InitGitHubSyncService()
-	if err != nil {
-		common.SysLog("GitHub sync service initialization failed: " + err.Error())
-		// 不返回错误，允许系统继续运行
-	}
+	// 注意: GitHub 同步服务已被暂时禁用以解决 Docker 构建问题
+	// 要启用此功能，请使用 GitHub Actions workflow: .github/workflows/enable-github-sync.yml
+	// 或参考文档: docs/ENABLE_GITHUB_SYNC.md
+	// err = service.InitGitHubSyncService()
+	// if err != nil {
+	// 	common.SysLog("GitHub sync service initialization failed: " + err.Error())
+	// 	// 不返回错误，允许系统继续运行
+	// }
 
 	return nil
 }
@@ -315,7 +322,7 @@ func executeLogContentCleanup() {
 
 	common.SysLog(fmt.Sprintf("Starting log content cleanup task, retention days: %d", common.ContentRetentionDays))
 
-	ctx := gopool.NewBackgroundContext()
+	ctx := context.Background()
 	rowsAffected, err := model.CleanOldLogContent(ctx, common.ContentRetentionDays)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("Log content cleanup failed: %s", err.Error()))
