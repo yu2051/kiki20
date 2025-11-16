@@ -167,3 +167,74 @@ func DeleteHistoryLogs(c *gin.Context) {
 	})
 	return
 }
+
+// GetContentLogs 获取带内容的日志（仅管理员）
+func GetContentLogs(c *gin.Context) {
+	// 验证管理员权限
+	if c.GetInt("role") != common.RoleRootUser {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "只有管理员可以查看对话内容",
+		})
+		return
+	}
+
+	pageInfo := common.GetPageQuery(c)
+	logType, _ := strconv.Atoi(c.Query("type"))
+	if logType == 0 {
+		logType = model.LogTypeConsume // 默认只查询消费日志
+	}
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	username := c.Query("username")
+	tokenName := c.Query("token_name")
+	modelName := c.Query("model_name")
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	group := c.Query("group")
+	
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(logs)
+	common.ApiSuccess(c, pageInfo)
+	return
+}
+
+// GetContentLogDetail 获取单条日志的完整内容（仅管理员）
+func GetContentLogDetail(c *gin.Context) {
+	// 验证管理员权限
+	if c.GetInt("role") != common.RoleRootUser {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "只有管理员可以查看对话内容",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的日志ID",
+		})
+		return
+	}
+
+	var log model.Log
+	err = model.LOG_DB.Where("id = ?", id).First(&log).Error
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    log,
+	})
+	return
+}

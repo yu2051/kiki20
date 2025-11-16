@@ -72,6 +72,9 @@ var DebugEnabled bool
 var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
+var ContentLoggingEnabled = true      // 是否启用内容记录（请求和响应）- 默认开启
+var ContentRetentionDays = 7          // 内容保留天数
+var MaxContentLength = 10000          // 最大记录内容长度（字符数，0表示不限制）
 
 var SMTPServer = ""
 var SMTPPort = 587

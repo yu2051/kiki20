@@ -37,6 +37,8 @@ type Log struct {
 	Group            string `json:"group" gorm:"index"`
 	Ip               string `json:"ip" gorm:"index;default:''"`
 	Other            string `json:"other"`
+	RequestContent   string `json:"request_content,omitempty" gorm:"type:text"`
+	ResponseContent  string `json:"response_content,omitempty" gorm:"type:text"`
 }
 
 // don't use iota, avoid change log type value
@@ -167,6 +169,23 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			needRecordIp = true
 		}
 	}
+	
+	// 获取请求和响应内容（如果启用了内容记录）
+	requestContent := ""
+	responseContent := ""
+	if common.ContentLoggingEnabled {
+		if reqContent, exists := c.Get("request_content"); exists {
+			if reqStr, ok := reqContent.(string); ok {
+				requestContent = reqStr
+			}
+		}
+		if respContent, exists := c.Get("response_content"); exists {
+			if respStr, ok := respContent.(string); ok {
+				responseContent = respStr
+			}
+		}
+	}
+	
 	log := &Log{
 		UserId:           userId,
 		Username:         username,
@@ -189,7 +208,9 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			}
 			return ""
 		}(),
-		Other: otherStr,
+		Other:           otherStr,
+		RequestContent:  requestContent,
+		ResponseContent: responseContent,
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -408,4 +429,30 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 	}
 
 	return total, nil
+}
+
+// CleanOldLogContent 清理超过保留期限的日志内容
+// 只清理 request_content 和 response_content 字段，不删除日志记录本身
+func CleanOldLogContent(ctx context.Context, retentionDays int) (int64, error) {
+	if !common.ContentLoggingEnabled || retentionDays <= 0 {
+		return 0, nil
+	}
+
+	// 计算目标时间戳
+	targetTimestamp := time.Now().AddDate(0, 0, -retentionDays).Unix()
+
+	// 更新符合条件的记录，将内容字段设为 NULL
+	result := LOG_DB.Model(&Log{}).
+		Where("created_at < ?", targetTimestamp).
+		Where("(request_content IS NOT NULL OR response_content IS NOT NULL)").
+		Updates(map[string]interface{}{
+			"request_content":  nil,
+			"response_content": nil,
+		})
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	return result.RowsAffected, nil
 }

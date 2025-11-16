@@ -116,6 +116,14 @@ func main() {
 		model.InitBatchUpdater()
 	}
 
+	// Start GitHub sync service
+	if ghService := service.GetGitHubSyncService(); ghService != nil {
+		ghService.StartAutoSync()
+	}
+
+	// Start log content cleanup task
+	go startLogContentCleanupTask()
+
 	if os.Getenv("ENABLE_PPROF") == "true" {
 		gopool.Go(func() {
 			log.Println(http.ListenAndServe("0.0.0.0:8005", nil))
@@ -256,5 +264,63 @@ func InitResources() error {
 	if err != nil {
 		return err
 	}
+
+	// Initialize GitHub Sync Service
+	err = service.InitGitHubSyncService()
+	if err != nil {
+		common.SysLog("GitHub sync service initialization failed: " + err.Error())
+		// 不返回错误，允许系统继续运行
+	}
+
 	return nil
+}
+
+// startLogContentCleanupTask 启动日志内容清理定时任务
+func startLogContentCleanupTask() {
+	if !common.ContentLoggingEnabled {
+		return
+	}
+
+	// 每天凌晨2点执行清理
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+
+	// 计算到下一个凌晨2点的延迟
+	now := time.Now()
+	next2AM := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, now.Location())
+	if now.After(next2AM) {
+		next2AM = next2AM.Add(24 * time.Hour)
+	}
+	initialDelay := time.Until(next2AM)
+
+	common.SysLog(fmt.Sprintf("Log content cleanup task will start at %s (in %v)", next2AM.Format("2006-01-02 15:04:05"), initialDelay))
+
+	// 等待到第一个执行时间
+	time.Sleep(initialDelay)
+
+	// 立即执行一次
+	executeLogContentCleanup()
+
+	// 然后每24小时执行一次
+	for range ticker.C {
+		executeLogContentCleanup()
+	}
+}
+
+// executeLogContentCleanup 执行日志内容清理
+func executeLogContentCleanup() {
+	if !common.ContentLoggingEnabled || common.ContentRetentionDays <= 0 {
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("Starting log content cleanup task, retention days: %d", common.ContentRetentionDays))
+
+	ctx := gopool.NewBackgroundContext()
+	rowsAffected, err := model.CleanOldLogContent(ctx, common.ContentRetentionDays)
+	if err != nil {
+		common.SysLog(fmt.Sprintf("Log content cleanup failed: %s", err.Error()))
+		return
+	}
+
+	common.SysLog(fmt.Sprintf("Log content cleanup completed, %d records cleaned", rowsAffected))
 }

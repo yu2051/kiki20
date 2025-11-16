@@ -123,6 +123,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var streamItems []string // store stream items
 	var lastStreamData string
 	var secondLastStreamData string // 存储倒数第二个stream data，用于音频模型
+	var fullResponseContent strings.Builder // 用于累积完整的响应内容
 
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
@@ -189,6 +190,27 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 
 	applyUsagePostProcessing(info, usage, nil)
 
+	// 从流式响应中提取完整内容并保存到context
+	if common.ContentLoggingEnabled {
+		for _, item := range streamItems {
+			var streamResp dto.ChatCompletionsStreamResponse
+			if err := json.Unmarshal([]byte(item), &streamResp); err == nil {
+				for _, choice := range streamResp.Choices {
+					if choice.Delta.Content != nil {
+						if contentStr, ok := choice.Delta.Content.(string); ok {
+							fullResponseContent.WriteString(contentStr)
+						}
+					}
+				}
+			}
+		}
+		responseContent := fullResponseContent.String()
+		if common.MaxContentLength > 0 && len(responseContent) > common.MaxContentLength {
+			responseContent = responseContent[:common.MaxContentLength] + "... [截断]"
+		}
+		c.Set("response_content", responseContent)
+	}
+
 	HandleFinalResponse(c, info, lastStreamData, responseId, createAt, model, systemFingerprint, usage, containStreamUsage)
 
 	return usage, nil
@@ -253,6 +275,21 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	}
 
 	applyUsagePostProcessing(info, &simpleResponse.Usage, responseBody)
+
+	// 从非流式响应中提取内容并保存到context
+	if common.ContentLoggingEnabled {
+		var fullResponseContent strings.Builder
+		for _, choice := range simpleResponse.Choices {
+			if choice.Message != nil {
+				fullResponseContent.WriteString(choice.Message.StringContent())
+			}
+		}
+		responseContent := fullResponseContent.String()
+		if common.MaxContentLength > 0 && len(responseContent) > common.MaxContentLength {
+			responseContent = responseContent[:common.MaxContentLength] + "... [截断]"
+		}
+		c.Set("response_content", responseContent)
+	}
 
 	switch info.RelayFormat {
 	case types.RelayFormatOpenAI:

@@ -152,6 +152,16 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 
 		logger.LogDebug(c, fmt.Sprintf("text request body: %s", string(jsonData)))
 
+		// 记录请求内容（如果启用了内容记录）
+		if common.ContentLoggingEnabled {
+			content := string(jsonData)
+			// 如果设置了最大长度限制，则截断
+			if common.MaxContentLength > 0 && len(content) > common.MaxContentLength {
+				content = content[:common.MaxContentLength] + "... [截断]"
+			}
+			c.Set("request_content", content)
+		}
+
 		requestBody = bytes.NewBuffer(jsonData)
 	}
 
