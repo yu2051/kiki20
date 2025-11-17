@@ -261,5 +261,12 @@ func SetApiRouter(router *gin.Engine) {
 			modelsRoute.PUT("/", controller.UpdateModelMeta)
 			modelsRoute.DELETE("/:id", controller.DeleteModelMeta)
 		}
+
+		githubSyncRoute := apiRouter.Group("/github/sync")
+		githubSyncRoute.Use(middleware.RootAuth())
+		{
+			githubSyncRoute.GET("/status", controller.GetGitHubSyncStatus)
+			githubSyncRoute.POST("", controller.TriggerGitHubSync)
+		}
 	}
 }
