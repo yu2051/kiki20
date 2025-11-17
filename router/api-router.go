@@ -42,6 +42,7 @@ func SetApiRouter(router *gin.Engine) {
 
 		// Public token query (no authentication required)
 		apiRouter.GET("/query/token", controller.GetTokenQuotaPublic)
+		apiRouter.GET("/query/token/history", controller.GetTokenUsageHistoryPublic)
 
 		apiRouter.POST("/stripe/webhook", controller.StripeWebhook)
 		apiRouter.POST("/creem/webhook", controller.CreemWebhook)

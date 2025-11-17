@@ -25,6 +25,11 @@ const TokenQuery = () => {
   const [tokenKey, setTokenKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [usageHistory, setUsageHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const pageSize = 10;
 
   const handleQuery = async () => {
     if (!tokenKey.trim()) {
@@ -34,6 +39,8 @@ const TokenQuery = () => {
 
     setLoading(true);
     setResult(null);
+    setUsageHistory([]);
+    setCurrentPage(1);
 
     try {
       const res = await API.get(`/api/query/token?key=${encodeURIComponent(tokenKey.trim())}`);
@@ -42,6 +49,8 @@ const TokenQuery = () => {
       if (success) {
         setResult(data);
         showSuccess('查询成功');
+        // 查询成功后，加载使用历史
+        loadUsageHistory(1);
       } else {
         showError(message || '查询失败');
       }
@@ -50,6 +59,30 @@ const TokenQuery = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadUsageHistory = async (page) => {
+    if (!tokenKey.trim()) return;
+
+    setHistoryLoading(true);
+    try {
+      const res = await API.get(`/api/query/token/history?key=${encodeURIComponent(tokenKey.trim())}&page=${page}&page_size=${pageSize}`);
+      const { success, data } = res.data;
+      
+      if (success) {
+        setUsageHistory(data.items || []);
+        setTotalRecords(data.total || 0);
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error('加载使用历史失败', error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    loadUsageHistory(page);
   };
 
   const handleKeyPress = (e) => {
@@ -87,6 +120,12 @@ const TokenQuery = () => {
       4: 'text-orange-600'
     };
     return colorMap[status] || 'text-gray-600';
+  };
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString('zh-CN');
   };
 
   return (
@@ -210,9 +249,96 @@ const TokenQuery = () => {
           </div>
         )}
 
+        {/* 使用历史记录 */}
+        {result && usageHistory.length > 0 && (
+          <div className="mt-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8 animate-fadeIn">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <svg className="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              使用历史记录
+            </h2>
+
+            {historyLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">时间</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">模型</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">输入 Tokens</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">输出 Tokens</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">花费</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usageHistory.map((record, index) => (
+                        <tr key={record.id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {formatTimestamp(record.created_at)}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                              {record.model_name}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-right text-gray-600">
+                            {record.prompt_tokens?.toLocaleString() || 0}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-right text-gray-600">
+                            {record.completion_tokens?.toLocaleString() || 0}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-right font-semibold text-red-600">
+                            ${formatQuota(record.quota)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 分页 */}
+                {totalRecords > pageSize && (
+                  <div className="mt-6 flex justify-center items-center space-x-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      上一页
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      第 {currentPage} 页，共 {Math.ceil(totalRecords / pageSize)} 页
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= Math.ceil(totalRecords / pageSize)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-4 text-center text-sm text-gray-500">
+                  共 {totalRecords} 条使用记录
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* 提示信息 */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>💡 此查询功能无需登录，您可以随时查看密钥使用情况</p>
+          <p>💡 此查询功能无需登录，您可以随时查看密钥使用情况和历史记录</p>
         </div>
       </div>
 

@@ -336,3 +336,59 @@ func GetTokenQuotaPublic(c *gin.Context) {
 		},
 	})
 }
+
+// GetTokenUsageHistoryPublic 公开查询令牌使用历史（无需登录）
+func GetTokenUsageHistoryPublic(c *gin.Context) {
+	key := c.Query("key")
+	if key == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "请提供密钥",
+		})
+		return
+	}
+
+	// 移除 sk- 前缀（如果有）
+	key = strings.TrimPrefix(key, "sk-")
+
+	// 查询令牌信息
+	token, err := model.GetTokenByKey(key, false)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "密钥无效或不存在",
+		})
+		return
+	}
+
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// 查询使用历史（只查询消费类型的日志）
+	logs, total, err := model.GetLogsByTokenName(token.Name, (page-1)*pageSize, pageSize)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "查询使用历史失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "查询成功",
+		"data": gin.H{
+			"items": logs,
+			"total": total,
+			"page":  page,
+			"size":  pageSize,
+		},
+	})
+}

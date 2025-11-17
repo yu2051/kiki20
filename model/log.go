@@ -456,3 +456,23 @@ func CleanOldLogContent(ctx context.Context, retentionDays int) (int64, error) {
 
 	return result.RowsAffected, nil
 }
+
+
+// GetLogsByTokenName 根据令牌名称查询使用日志（用于公开查询）
+func GetLogsByTokenName(tokenName string, startIdx int, num int) (logs []*Log, total int64, err error) {
+	tx := LOG_DB.Where("token_name = ? AND type = ?", tokenName, LogTypeConsume)
+	
+	err = tx.Model(&Log{}).Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	err = tx.Order("id desc").Limit(num).Offset(startIdx).
+		Select("id, created_at, model_name, quota, prompt_tokens, completion_tokens, use_time").
+		Find(&logs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	return logs, total, nil
+}
