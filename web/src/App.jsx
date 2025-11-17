@@ -49,6 +49,7 @@ import OAuth2Callback from './components/auth/OAuth2Callback';
 import PersonalSetting from './components/settings/PersonalSetting';
 import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
+import GitHubSync from './pages/GitHubSync';
 
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -253,6 +254,14 @@ function App() {
           element={
             <AdminRoute>
               <ContentLog />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/github-sync'
+          element={
+            <AdminRoute>
+              <GitHubSync />
             </AdminRoute>
           }
         />

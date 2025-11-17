@@ -47,6 +47,7 @@ const routerMap = {
   models: '/console/models',
   playground: '/console/playground',
   personal: '/console/personal',
+  'github-sync': '/console/github-sync',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -168,6 +169,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         itemKey: 'user',
         to: '/user',
         className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('同步数据'),
+        itemKey: 'github-sync',
+        to: '/console/github-sync',
+        className: isRoot() ? '' : 'tableHiddle',
       },
       {
         text: t('对话内容'),
