@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -180,7 +181,7 @@ func uploadToGitHub(token, owner, repo, path string, content []byte) error {
 	// 准备上传数据
 	payload := map[string]interface{}{
 		"message": fmt.Sprintf("Update %s - %s", path, time.Now().Format("2006-01-02 15:04:05")),
-		"content": common.Base64Encode(string(content)),
+		"content": base64.StdEncoding.EncodeToString(content),
 	}
 	if sha != "" {
 		payload["sha"] = sha
