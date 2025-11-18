@@ -147,6 +147,11 @@ func InitOptionMap() {
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
+	
+	// GitHub 同步配置
+	common.OptionMap["GitHubSyncToken"] = ""
+	common.OptionMap["GitHubSyncRepo"] = ""
+	common.OptionMap["GitHubSyncInterval"] = "300"
 
 	// 自动添加所有注册的模型配置
 	modelConfigs := config.GlobalConfig.ExportAllConfigs()
@@ -457,6 +462,15 @@ func updateOptionMap(key string, value string) (err error) {
 		common.MaxContentLength, _ = strconv.Atoi(value)
 	case "PayMethods":
 		err = operation_setting.UpdatePayMethodsByJsonString(value)
+	case "GitHubSyncToken":
+		// GitHub 同步 Token，直接保存到 OptionMap
+		// 不需要额外处理，已经在 OptionMap 中更新
+	case "GitHubSyncRepo":
+		// GitHub 同步仓库地址
+		// 不需要额外处理，已经在 OptionMap 中更新
+	case "GitHubSyncInterval":
+		// GitHub 同步间隔（秒）
+		// 不需要额外处理，已经在 OptionMap 中更新
 	}
 	return err
 }

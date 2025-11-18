@@ -9,9 +9,11 @@ import (
 
 // GetGitHubSyncStatus 获取 GitHub 同步状态
 func GetGitHubSyncStatus(c *gin.Context) {
-	// 检查是否配置了 GitHub 同步
-	token := common.GetEnvOrDefaultString("GITHUB_SYNC_TOKEN", "")
-	repo := common.GetEnvOrDefaultString("GITHUB_SYNC_REPO", "")
+	// 从数据库读取配置
+	common.OptionMapRWMutex.RLock()
+	token := common.OptionMap["GitHubSyncToken"]
+	repo := common.OptionMap["GitHubSyncRepo"]
+	common.OptionMapRWMutex.RUnlock()
 	
 	enabled := token != "" && repo != ""
 	
@@ -26,14 +28,16 @@ func GetGitHubSyncStatus(c *gin.Context) {
 
 // TriggerGitHubSync 手动触发 GitHub 同步
 func TriggerGitHubSync(c *gin.Context) {
-	// 检查是否配置了 GitHub 同步
-	token := common.GetEnvOrDefaultString("GITHUB_SYNC_TOKEN", "")
-	repo := common.GetEnvOrDefaultString("GITHUB_SYNC_REPO", "")
+	// 从数据库读取配置
+	common.OptionMapRWMutex.RLock()
+	token := common.OptionMap["GitHubSyncToken"]
+	repo := common.OptionMap["GitHubSyncRepo"]
+	common.OptionMapRWMutex.RUnlock()
 	
 	if token == "" || repo == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "GitHub 同步未配置，请先在系统设置中配置 GitHub Token 和仓库地址",
+			"message": "GitHub 同步未配置，请先配置 GitHub Token 和仓库地址",
 		})
 		return
 	}

@@ -49,10 +49,16 @@ const GitHubSync = () => {
       const res = await API.get('/api/option/');
       if (res.data.success) {
         const options = res.data.data;
+        // 将数组转换为对象
+        const optionsMap = {};
+        options.forEach(opt => {
+          optionsMap[opt.key] = opt.value;
+        });
+        
         setConfig({
-          github_sync_token: options.GitHubSyncToken || '',
-          github_sync_repo: options.GitHubSyncRepo || '',
-          github_sync_interval: options.GitHubSyncInterval || '300',
+          github_sync_token: optionsMap.GitHubSyncToken || '',
+          github_sync_repo: optionsMap.GitHubSyncRepo || '',
+          github_sync_interval: optionsMap.GitHubSyncInterval || '300',
         });
       }
     } catch (error) {
@@ -86,7 +92,7 @@ const GitHubSync = () => {
         return;
       }
 
-      // 保存配置
+      // 保存配置到数据库
       const updates = [
         { key: 'GitHubSyncToken', value: config.github_sync_token },
         { key: 'GitHubSyncRepo', value: config.github_sync_repo },
@@ -94,10 +100,15 @@ const GitHubSync = () => {
       ];
 
       for (const update of updates) {
-        await API.put('/api/option/', update);
+        const res = await API.put('/api/option/', update);
+        if (!res.data.success) {
+          throw new Error(res.data.message || '保存失败');
+        }
       }
 
-      showSuccess(t('配置保存成功，请重启服务以生效'));
+      showSuccess(t('配置保存成功，立即生效'));
+      // 重新加载同步状态
+      loadSyncStatus();
     } catch (error) {
       showError(t('保存配置失败: ') + (error.message || ''));
     } finally {
