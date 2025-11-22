@@ -530,6 +530,16 @@ func StartGitHubAutoSync() {
 
 // stopGitHubAutoSyncInternal 内部停止函数（不加锁）
 func stopGitHubAutoSyncInternal() {
+	if githubSyncStopChan != nil {
+		// 先发送停止信号
+		select {
+		case githubSyncStopChan <- true:
+		default:
+			// 如果通道已关闭或已满，忽略
+		}
+		// 等待一小段时间让 goroutine 退出
+		time.Sleep(100 * time.Millisecond)
+	}
 	if githubSyncTicker != nil {
 		githubSyncTicker.Stop()
 		githubSyncTicker = nil
