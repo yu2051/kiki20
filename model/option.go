@@ -463,15 +463,17 @@ func updateOptionMap(key string, value string) (err error) {
 		common.MaxContentLength, _ = strconv.Atoi(value)
 	case "PayMethods":
 		err = operation_setting.UpdatePayMethodsByJsonString(value)
-	case "GitHubSyncToken":
-		// GitHub 同步 Token，直接保存到 OptionMap
-		// 不需要额外处理，已经在 OptionMap 中更新
-	case "GitHubSyncRepo":
-		// GitHub 同步仓库地址
-		// 不需要额外处理，已经在 OptionMap 中更新
-	case "GitHubSyncInterval":
-		// GitHub 同步间隔（秒）
-		// 不需要额外处理，已经在 OptionMap 中更新
+	case "GitHubSyncToken", "GitHubSyncRepo", "GitHubSyncInterval":
+		// GitHub 同步配置更新后，需要重启自动同步任务
+		// 使用回调机制避免循环依赖
+		if common.GitHubSyncConfigUpdateCallback != nil {
+			go func() {
+				// 延迟一小段时间，确保所有相关配置都已更新
+				time.Sleep(100 * time.Millisecond)
+				common.SysLog("GitHub 同步配置已更新，正在重启自动同步任务...")
+				common.GitHubSyncConfigUpdateCallback()
+			}()
+		}
 	case "GitHubSyncLastTime":
 		// GitHub 最后同步时间
 		// 不需要额外处理，已经在 OptionMap 中更新

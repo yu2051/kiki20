@@ -127,6 +127,9 @@ var RelayTimeout int // unit is second
 var GitHubSyncEnabled = false
 var GitHubSyncInterval = 300 // unit is second, default 5 minutes
 
+// GitHubSyncConfigUpdateCallback 用于在 GitHub 同步配置更新时触发回调
+var GitHubSyncConfigUpdateCallback func()
+
 var GeminiSafetySetting string
 
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT

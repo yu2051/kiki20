@@ -117,6 +117,9 @@ func main() {
 		model.InitBatchUpdater()
 	}
 
+	// Register GitHub sync config update callback
+	common.GitHubSyncConfigUpdateCallback = controller.RestartGitHubAutoSync
+
 	// Start GitHub sync service
 	go controller.StartGitHubAutoSync()
 
